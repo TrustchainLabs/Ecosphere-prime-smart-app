@@ -20,6 +20,8 @@ import { Hashing } from '@hsuite/did-sdk-js';
 import { VCStatusChange } from './credentials.controller';
 import { CypherService } from 'src/cypher/cypher.service';
 
+
+
 export const VcSlStatus = {
     ACTIVE: 0,
     RESUMED: 1,
@@ -41,7 +43,7 @@ export class CredentialsService {
     };
 
     private pinataAuth = {
-        jwt: 'pinata_jwt'
+        jwt: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiIyMjRmZTA3My1hZWVhLTQzODItODU3Ny04Njg1NjdhN2VkOGUiLCJlbWFpbCI6ImVjb3NwaGVyZTVAc2NpY29tLm15IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6ImEwYjFhMGU1NTI1MDU5NTc1MzdlIiwic2NvcGVkS2V5U2VjcmV0IjoiZTVmNzI5OGJmYjc4NTkzM2JiMjI2NTQzNzk3MGUwMTk2N2M4ODFlNzcwNGY5NDhmNzcxY2QzOTYwYWQ3Mjg3YyIsImV4cCI6MTc3NzAxOTk5Nn0.DL8kAvohvHCgwV93EZIFngHdsjr58K2JUwf9vbMwQ8w'
     };
 
     constructor(
@@ -335,9 +337,11 @@ export class CredentialsService {
                 else {
                     switch (credential.internal_status) {
                         case IDCredentialStatus.PENDING:
+                            console.log('Credential is pending, minting the NFT...');
+
                             // minting the nft...
                             credential = await this.mintNft(credential, issuer, base64metadata,userId);
-
+                            console.log('Credential after minting the NFT:', credential);
                             // trying to unfreeze the nft, in case it is already frozen...
                             try {
                                 await this.unfreezeNft(credential, issuer);
@@ -456,6 +460,10 @@ export class CredentialsService {
                 const metadata = Buffer.from(base64metadata, 'base64').toString();
                 const vcMetadata = JSON.parse(metadata);
                 const encoded = await this.cypherService.encrypt(JSON.stringify(vcMetadata));
+                console.log('Encoded:', encoded);
+                console.log('Encoded:', encoded.encryptedText);
+                console.log('Encoded:', encoded.iv);
+
 
                 const nftMetadata = {
                     name: `DePIN - Verifiable Credential`,
@@ -466,10 +474,12 @@ export class CredentialsService {
                     },
                     image: issuer.imageCID
                 }
+                console.log('NFT Metadata:', nftMetadata);
                 // Add custom metadata
                 const pinatametadata = JSON.stringify({
                     name: owner,  // This sets the custom file name
                 });
+                console.log('Pinata Metadata:', pinatametadata);
                 let pinataData = JSON.stringify({
                     "pinataOptions": {
                         "cidVersion": 0
@@ -477,7 +487,7 @@ export class CredentialsService {
                     "pinataMetadata": pinatametadata,
                     "pinataContent": nftMetadata
                 });
-
+                console.log('Pinata Data:', pinataData);
                 let response = await this.httpService.post(
                     `${this.pinata.baseUrl}${this.pinata.pinEndPoint}`,
                     pinataData,
@@ -487,8 +497,12 @@ export class CredentialsService {
                             'Authorization': `Bearer ${this.pinataAuth.jwt}`
                         }
                     }).toPromise();
-
-                // SMART-NODE CALL: asking the smart-nodes to mint the nft...
+                console.log('Pinata Response:', response.data);
+                if (response.status != 200) {
+                    throw new Error('Failed to upload metadata to Pinata.');
+                }
+                console.log('Pinata Response:', response.data.IpfsHash);
+               
                 let mintBytes = (await this.nodeClientService.axios.post(
                     `/hts/mint/nft`, {
                     token_id: issuer.nftID,

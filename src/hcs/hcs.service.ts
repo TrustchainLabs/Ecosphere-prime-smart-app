@@ -98,7 +98,7 @@ export class HcsService {
   }
 
   async createTopicMessage (uuid:string,topicId: string, createTopicMessageDto: CreateTopicMessageDto, req: Request) {
-    console.log({ uuid })
+    console.log({ uuid, topicId, createTopicMessageDto })
     try {
       const device = await this.deviceModel.find({uuid},'+privateKey');
       const createdTopicMessageDoc = new this.hcsTopicMessageModel({
